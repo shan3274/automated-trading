@@ -1,0 +1,190 @@
+/* Testing Lab Styles */
+.testing-lab-container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.test-section {
+  padding: 20px;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.test-section:last-child {
+  border-bottom: none;
+}
+
+.section-title {
+  font-size: 1rem;
+  color: #8a8aa3;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.manual-trade-form {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.test-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.test-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(42, 42, 74, 0.5);
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.test-btn:hover:not(:disabled) {
+  background: rgba(42, 42, 74, 0.8);
+  border-color: #00d4aa;
+}
+
+.test-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.test-btn.buy {
+  background: rgba(0, 212, 170, 0.2);
+  border-color: #00d4aa;
+  color: #00d4aa;
+}
+
+.test-btn.buy:hover:not(:disabled) {
+  background: rgba(0, 212, 170, 0.3);
+}
+
+.test-btn.sell {
+  background: rgba(255, 107, 107, 0.2);
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+.test-btn.sell:hover:not(:disabled) {
+  background: rgba(255, 107, 107, 0.3);
+}
+
+.test-results {
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.no-results {
+  padding: 40px;
+  text-align: center;
+  color: #8a8aa3;
+}
+
+.test-result {
+  background: rgba(42, 42, 74, 0.5);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border-left: 4px solid #2a2a4a;
+}
+
+.test-result.success {
+  border-left-color: #00d4aa;
+  background: rgba(0, 212, 170, 0.08);
+}
+
+.test-result.error {
+  border-left-color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.08);
+}
+
+.test-result.info {
+  border-left-color: #ffd93d;
+  background: rgba(255, 217, 61, 0.08);
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.result-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.test-result.success .result-title {
+  color: #00d4aa;
+}
+
+.test-result.error .result-title {
+  color: #ff6b6b;
+}
+
+.test-result.info .result-title {
+  color: #ffd93d;
+}
+
+.result-time {
+  font-size: 0.85rem;
+  color: #8a8aa3;
+}
+
+.result-message {
+  color: #8a8aa3;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.result-data {
+  margin-top: 12px;
+}
+
+.result-data summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #00d4aa;
+  margin-bottom: 8px;
+}
+
+.result-data pre {
+  background: rgba(26, 26, 46, 0.95);
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  color: #8a8aa3;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .manual-trade-form {
+    grid-template-columns: 1fr;
+  }
+  
+  .test-buttons {
+    flex-direction: column;
+  }
+  
+  .test-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

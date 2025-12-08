@@ -1,0 +1,15 @@
+# Crypto Trading Bot Dependencies
+python-binance==1.0.19
+pandas==2.1.4
+numpy==1.26.2
+python-dotenv==1.0.0
+requests==2.31.0
+websocket-client==1.7.0
+ta==0.11.0
+schedule==1.2.1
+colorama==0.4.6
+
+# API Server Dependencies
+flask==3.0.0
+flask-cors==4.0.0
+flask-socketio==5.3.6

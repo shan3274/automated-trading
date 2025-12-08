@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+# .env  # Uncomment this to hide API keys in public repo
+.env.local
+.env.production
+
+# Logs
+logs/*.log
+*.log
+
+# Data files
+data/*.json
+data/*.csv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (for frontend)
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
+frontend/.env.production.local
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Distribution
+dist/
+build/
+*.egg-info/
