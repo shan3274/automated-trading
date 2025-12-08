@@ -1,5 +1,5 @@
-#!/data/data/com.termux/files/usr/bin/bash
-# Start Trading Bot in Background
+#!/bin/bash
+# Start Trading Bot in Background (Works on Mac & Termux)
 # Run: bash start.sh
 
 clear
@@ -29,13 +29,24 @@ fi
 
 # Check if tmux is installed
 if ! command -v tmux &> /dev/null; then
-    echo "📦 Installing tmux..."
-    pkg install -y tmux
+    echo "⚠️  tmux not installed"
+    if command -v pkg &> /dev/null; then
+        echo "📦 Installing tmux..."
+        pkg install -y tmux
+    elif command -v brew &> /dev/null; then
+        echo "📦 Installing tmux..."
+        brew install tmux
+    else
+        echo "❌ Please install tmux manually"
+        exit 1
+    fi
 fi
 
-# Enable wake lock
-echo "🔋 Enabling wake lock..."
-termux-wake-lock
+# Enable wake lock (Termux only)
+if command -v termux-wake-lock &> /dev/null; then
+    echo "🔋 Enabling wake lock..."
+    termux-wake-lock
+fi
 
 # Start bot in tmux
 echo "🚀 Starting bot in background..."

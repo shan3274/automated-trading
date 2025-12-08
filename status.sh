@@ -1,51 +1,47 @@
-#!/data/data/com.termux/files/usr/bin/bash
-# Check Bot Status
-# Run: bash status.sh
+#!/bin/bash
+# Mac - Check Bot Status
+# Run: ./status.sh
 
-clear
 echo "╔════════════════════════════════════════════╗"
 echo "║    Trading Bot Status                      ║"
 echo "╚════════════════════════════════════════════╝"
 echo ""
 
-# Check if bot is running
-if pgrep -f "python.*main.py" > /dev/null; then
-    echo "✅ Bot Status: RUNNING"
-    echo ""
-    echo "📊 Process Info:"
-    ps aux | grep -E "python.*(main|server)" | grep -v grep
-    echo ""
+PID_FILE="/tmp/trading_bot_daemon.pid"
+
+# Check if running
+if [ -f "$PID_FILE" ]; then
+    BOT_PID=$(cat "$PID_FILE")
     
-    # Check tmux session
-    if tmux has-session -t trading 2>/dev/null; then
-        echo "✅ Tmux session: ACTIVE"
-        echo "   Attach: tmux attach -t trading"
+    if ps -p "$BOT_PID" > /dev/null 2>&1; then
+        echo "✅ Bot Status: RUNNING"
+        echo "   PID: $BOT_PID"
+        echo ""
+        
+        # Show open trades
+        if [ -f data/trades.json ]; then
+            OPEN_TRADES=$(grep -c '"status": "OPEN"' data/trades.json 2>/dev/null || echo "0")
+            echo "📊 Open Trades: $OPEN_TRADES"
+        fi
     else
-        echo "⚠️  Tmux session: NOT FOUND"
+        echo "❌ Bot Status: NOT RUNNING (stale PID)"
+        rm -f "$PID_FILE"
     fi
-    
-    echo ""
-    echo "🔋 Wake lock status:"
-    termux-wake-lock
-    
+elif pgrep -f "python.*main.py" > /dev/null 2>&1; then
+    PID=$(pgrep -f "python.*main.py")
+    echo "⚠️  Bot Status: RUNNING (no PID file)"
+    echo "   PID: $PID"
 else
     echo "❌ Bot Status: NOT RUNNING"
     echo ""
-    echo "Start bot: bash start.sh"
+    echo "Start: ./start.sh"
 fi
 
 echo ""
 echo "📋 Recent Logs (last 10 lines):"
 echo "─────────────────────────────────────────────"
-if ls logs/trading_*.log 1> /dev/null 2>&1; then
-    tail -10 logs/trading_*.log 2>/dev/null | tail -10
+if [ -f logs/bot_output.log ]; then
+    tail -10 logs/bot_output.log
 else
     echo "No logs found"
 fi
-
-echo ""
-echo "─────────────────────────────────────────────"
-echo "Commands:"
-echo "  Start:  bash start.sh"
-echo "  Stop:   bash stop.sh"
-echo "  Logs:   tail -f logs/trading_*.log"
