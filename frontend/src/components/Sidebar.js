@@ -4,12 +4,8 @@ import { TrendingUp, LayoutDashboard, History, BarChart3, Wallet, TestTube } fro
 const cryptoIcons = {
   BTC: '₿',
   ETH: 'Ξ',
-  BNB: 'B',
   SOL: 'S',
-  XRP: 'X',
-  DOGE: 'Ð',
-  ADA: 'A',
-  MATIC: 'M'
+  DOGE: '🐕'
 };
 
 function Sidebar({ prices, selectedCrypto, onSelectCrypto, activeView, onViewChange }) {

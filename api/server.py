@@ -6,6 +6,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import time
 from datetime import datetime
 import sys
@@ -34,6 +35,11 @@ running = False
 trade_manager = None
 pl_analyzer = None
 
+# Price cache for fast responses
+price_cache = {}
+price_cache_time = 0
+PRICE_CACHE_TTL = 5  # Cache prices for 5 seconds
+
 def init_client():
     global client, trade_manager, pl_analyzer
     try:
@@ -48,6 +54,34 @@ def init_client():
 # Initialize on startup
 init_client()
 
+# Background price updater
+def update_prices_background():
+    global price_cache, price_cache_time
+    symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'DOGEUSDT']
+    while True:
+        try:
+            if client:
+                all_tickers = client.client.get_all_tickers()
+                ticker_map = {t['symbol']: float(t['price']) for t in all_tickers}
+                new_cache = {}
+                for symbol in symbols:
+                    price = ticker_map.get(symbol, 0)
+                    new_cache[symbol] = {
+                        'price': price,
+                        'symbol': symbol,
+                        'base': symbol.replace('USDT', ''),
+                        'quote': 'USDT'
+                    }
+                price_cache = new_cache
+                price_cache_time = time.time()
+        except Exception as e:
+            print(f"Background price update error: {e}")
+        time.sleep(5)
+
+# Start background price updater thread
+price_update_thread = threading.Thread(target=update_prices_background, daemon=True)
+price_update_thread.start()
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -55,22 +89,32 @@ def health_check():
 
 @app.route('/api/prices', methods=['GET'])
 def get_prices():
-    """Get current prices for popular cryptos"""
-    symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT']
+    """Get current prices for popular cryptos - uses cache for instant response"""
+    global price_cache
+    
+    # Return cached prices instantly (background thread keeps them updated)
+    if price_cache:
+        return jsonify(price_cache)
+    
+    # Fallback if cache not ready yet (first request)
+    symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'DOGEUSDT']
     prices = {}
     
     if client:
-        for symbol in symbols:
-            try:
-                price = client.get_current_price(symbol)
+        try:
+            all_tickers = client.client.get_all_tickers()
+            ticker_map = {t['symbol']: float(t['price']) for t in all_tickers}
+            
+            for symbol in symbols:
+                price = ticker_map.get(symbol, 0)
                 prices[symbol] = {
                     'price': price,
                     'symbol': symbol,
                     'base': symbol.replace('USDT', ''),
                     'quote': 'USDT'
                 }
-            except:
-                prices[symbol] = {'price': 0, 'symbol': symbol}
+        except Exception as e:
+            print(f"Error fetching prices: {e}")
     
     return jsonify(prices)
 
@@ -235,6 +279,40 @@ def stop_bot():
     
     return jsonify({'status': 'not running'})
 
+@app.route('/api/bot/close-position', methods=['POST'])
+def close_position():
+    """Close current open position immediately"""
+    global bot
+    
+    if not bot:
+        return jsonify({'error': 'Bot not running'}), 400
+    
+    if not bot.in_position:
+        return jsonify({'error': 'No open position'}), 400
+    
+    try:
+        # Get current price before selling
+        current_price = bot.get_current_price()
+        entry_price = bot.entry_price
+        
+        # Force sell
+        bot.execute_sell()
+        
+        profit_loss = (current_price - entry_price) * bot.quantity if entry_price > 0 else 0
+        profit_pct = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+        
+        return jsonify({
+            'status': 'closed',
+            'exit_price': current_price,
+            'entry_price': entry_price,
+            'profit_loss': profit_loss,
+            'profit_pct': profit_pct,
+            'quantity': bot.quantity
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/bot/status', methods=['GET'])
 def bot_status():
     """Get bot status"""
@@ -332,6 +410,45 @@ def get_open_trades():
         'count': len(trades_with_current),
         'trades': trades_with_current
     })
+
+@app.route('/api/trades/<trade_id>/close', methods=['POST'])
+def close_trade_manual(trade_id):
+    """Manually close a specific open trade and place market exit"""
+    global trade_manager, client
+    if not trade_manager or not client:
+        return jsonify({'error': 'Trade manager or client not initialized'}), 500
+
+    trade = trade_manager.get_trade_by_id(trade_id)
+    if not trade:
+        return jsonify({'error': 'Trade not found'}), 404
+    if trade.status != 'open':
+        return jsonify({'error': 'Trade already closed'}), 400
+
+    try:
+        current_price = client.get_current_price(trade.symbol)
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch price: {e}'}), 500
+
+    order_resp = None
+    try:
+        if trade.side.upper() == 'BUY':
+            order_resp = client.place_market_sell(trade.symbol, trade.quantity)
+        else:
+            order_resp = client.place_market_buy(trade.symbol, trade.quantity)
+    except Exception as e:
+        print(f"Manual close order failed, proceeding with record close: {e}")
+
+    order_id = str(order_resp.get('orderId')) if order_resp else None
+    closed_trade = trade_manager.close_trade(
+        trade_id=trade_id,
+        exit_price=current_price,
+        order_id=order_id
+    )
+
+    if not closed_trade:
+        return jsonify({'error': 'Failed to close trade'}), 500
+
+    return jsonify({'trade': closed_trade.to_dict()})
 
 @app.route('/api/trades/closed', methods=['GET'])
 def get_closed_trades():

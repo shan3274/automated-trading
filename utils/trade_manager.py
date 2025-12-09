@@ -27,6 +27,8 @@ class Trade:
     exit_time: Optional[str] = None
     profit_loss: Optional[float] = None
     profit_loss_pct: Optional[float] = None
+    take_profit: Optional[float] = None
+    stop_loss: Optional[float] = None
     status: str = "open"
     order_id: Optional[str] = None
     strategy: Optional[str] = None
@@ -36,7 +38,18 @@ class Trade:
     
     @classmethod
     def from_dict(cls, data: dict) -> 'Trade':
-        return cls(**data)
+        defaults = {
+            'exit_price': None,
+            'exit_time': None,
+            'profit_loss': None,
+            'profit_loss_pct': None,
+            'take_profit': None,
+            'stop_loss': None,
+            'order_id': None,
+            'strategy': None,
+        }
+        merged = {**defaults, **data}
+        return cls(**merged)
 
 
 class TradeManager:
@@ -88,7 +101,9 @@ class TradeManager:
         quantity: float,
         entry_price: float,
         order_id: str = None,
-        strategy: str = None
+        strategy: str = None,
+        take_profit: float = None,
+        stop_loss: float = None
     ) -> Trade:
         """Open a new trade"""
         trade = Trade(
@@ -100,6 +115,8 @@ class TradeManager:
             entry_time=datetime.now().isoformat(),
             order_id=order_id,
             strategy=strategy,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
             status=TradeStatus.OPEN.value
         )
         self.trades.append(trade)
@@ -133,14 +150,17 @@ class TradeManager:
     
     def get_open_trades(self) -> List[Trade]:
         """Get all open trades"""
+        self._load_trades()  # Reload to get latest trades from file
         return [t for t in self.trades if t.status == TradeStatus.OPEN.value]
     
     def get_closed_trades(self) -> List[Trade]:
         """Get all closed trades"""
+        self._load_trades()  # Reload to get latest trades from file
         return [t for t in self.trades if t.status == TradeStatus.CLOSED.value]
     
     def get_all_trades(self) -> List[Trade]:
         """Get all trades"""
+        self._load_trades()  # Reload to get latest trades from file
         return self.trades
     
     def get_running_trade(self, symbol: str = None) -> Optional[Trade]:
@@ -154,6 +174,7 @@ class TradeManager:
     
     def get_trade_by_id(self, trade_id: str) -> Optional[Trade]:
         """Get trade by ID"""
+        self._load_trades()  # Reload to get latest trades from file
         for trade in self.trades:
             if trade.id == trade_id:
                 return trade

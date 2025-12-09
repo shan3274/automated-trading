@@ -11,6 +11,8 @@ from strategies.rsi_strategy import RSIStrategy
 from strategies.ema_crossover_strategy import EMACrossoverStrategy
 from strategies.combined_strategy import CombinedStrategy
 from strategies.one_minute_strategy import OneMinuteStrategy
+from strategies.momentum_pulse_strategy import MomentumPulseStrategy
+from strategies.mtf_impulse_strategy import MTFImpulseStrategy
 from utils.logger import setup_logger
 from utils.trade_manager import TradeManager
 
@@ -30,10 +32,15 @@ class TradingBot:
         self.quantity = quantity or config.TRADE_QUANTITY
         self.client = BinanceClient()
         self.running = False
+        self.strategy_name = strategy.lower()
         self.interval = interval  # Timeframe for candles
         
         # Select strategy
-        self.strategy = self._get_strategy(strategy)
+        self.strategy = self._get_strategy(self.strategy_name)
+
+        # Pulse / MTF strategies work best on lower timeframe; default to 5m if not provided
+        if self.strategy_name in ['pulse', 'momentum', 'mtf', 'mtfpulse', 'mtf-pulse'] and interval == '1h':
+            self.interval = '5m'
         
         # Trade tracking with persistent storage
         self.trade_manager = TradeManager()
@@ -62,7 +69,12 @@ class TradingBot:
             'rsi': RSIStrategy(),
             'ema': EMACrossoverStrategy(),
             'combined': CombinedStrategy(),
-            '1min': OneMinuteStrategy()
+            '1min': OneMinuteStrategy(),
+            'pulse': MomentumPulseStrategy(),
+            'momentum': MomentumPulseStrategy(),
+            'mtf': MTFImpulseStrategy(),
+            'mtfpulse': MTFImpulseStrategy(),
+            'mtf-pulse': MTFImpulseStrategy()
         }
         return strategies.get(strategy_name.lower(), CombinedStrategy())
     
@@ -105,13 +117,19 @@ class TradingBot:
                 self.strategy.update_position('LONG', current_price)
                 
                 # Save to persistent trade manager
+                # Pre-calc TP/SL levels based on config
+                take_profit = current_price * (1 + config.TAKE_PROFIT_PERCENT / 100)
+                stop_loss = current_price * (1 - config.STOP_LOSS_PERCENT / 100)
+
                 new_trade = self.trade_manager.open_trade(
                     symbol=self.symbol,
                     side='BUY',
                     quantity=self.quantity,
                     entry_price=current_price,
                     order_id=str(order.get('orderId')),
-                    strategy=self.strategy.name
+                    strategy=self.strategy.name,
+                    take_profit=take_profit,
+                    stop_loss=stop_loss
                 )
                 self.current_trade_id = new_trade.id
                 
@@ -218,22 +236,46 @@ class TradingBot:
                     self.execute_sell()
                     return sl_tp
             # Get historical data for strategy
-            # Use 1m candles for 1min strategy, 1h for others
-            interval = '1m' if isinstance(self.strategy, OneMinuteStrategy) else self.interval
-            limit = 100 if interval == '1h' else 50  # Less data for 1m
-            
-            df = self.client.get_historical_klines(
-                self.symbol,
-                interval=interval,
-                limit=limit
-            )
-            
-            if df.empty:
-                logger.warning("No historical data available")
-                return None
-            
-            # Generate trading signal
-            signal = self.strategy.generate_signal(df)
+            if getattr(self.strategy, 'requires_multi_tf', False):
+                htf_interval = getattr(self.strategy, 'htf_interval', '1h')
+                ltf_interval = getattr(self.strategy, 'ltf_interval', '5m')
+                htf_limit = 150 if htf_interval.endswith('h') else 200
+                ltf_limit = 120 if ltf_interval.endswith('m') else 100
+
+                df_htf = self.client.get_historical_klines(
+                    self.symbol,
+                    interval=htf_interval,
+                    limit=htf_limit
+                )
+
+                df_ltf = self.client.get_historical_klines(
+                    self.symbol,
+                    interval=ltf_interval,
+                    limit=ltf_limit
+                )
+
+                if df_htf.empty or df_ltf.empty:
+                    logger.warning("No historical data available (multi-TF)")
+                    return None
+
+                signal = self.strategy.generate_signal({'htf': df_htf, 'ltf': df_ltf})
+            else:
+                # Use 1m candles for 1min strategy, otherwise configured interval
+                interval = '1m' if isinstance(self.strategy, OneMinuteStrategy) else self.interval
+                limit = 100 if interval == '1h' else 50  # Less data for 1m
+                
+                df = self.client.get_historical_klines(
+                    self.symbol,
+                    interval=interval,
+                    limit=limit
+                )
+                
+                if df.empty:
+                    logger.warning("No historical data available")
+                    return None
+                
+                # Generate trading signal
+                signal = self.strategy.generate_signal(df)
             
             # Log signal analysis
             if signal == Signal.BUY:
@@ -280,9 +322,26 @@ class TradingBot:
                 logger.error(f"Error in main loop: {e}")
                 time.sleep(10)  # Wait before retrying
     
+    def close_all_positions(self):
+        """Close all open positions before shutdown"""
+        if self.in_position:
+            logger.warning("🔴 Closing open position before shutdown...")
+            try:
+                self.execute_sell()
+                logger.info("✅ Position closed successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to close position: {e}")
+        else:
+            logger.info("✅ No open positions to close")
+    
     def stop(self):
         """Stop the bot"""
         self.running = False
+        logger.info("🛑 Stopping bot...")
+        
+        # Close all open positions first
+        self.close_all_positions()
+        
         logger.info("🛑 Bot stopped")
         self.print_summary()
     

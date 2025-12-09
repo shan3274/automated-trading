@@ -14,6 +14,7 @@ Usage:
 import argparse
 import os
 import sys
+import signal
 
 # Create logs directory if it doesn't exist
 os.makedirs('logs', exist_ok=True)
@@ -24,6 +25,16 @@ from utils.logger import setup_logger
 import config
 
 logger = setup_logger('Main')
+
+# Global bot instance for signal handler
+bot_instance = None
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals (SIGTERM, SIGINT)"""
+    logger.info(f"\n🛑 Received signal {signum}, shutting down gracefully...")
+    if bot_instance:
+        bot_instance.stop()
+    sys.exit(0)
 
 def print_banner():
     """Print welcome banner"""
@@ -131,12 +142,19 @@ def main():
         return
     
     # Create and run bot
+    global bot_instance
+    
     try:
         bot = TradingBot(
             symbol=args.symbol,
             quantity=args.quantity,
             strategy=args.strategy
         )
+        bot_instance = bot
+        
+        # Setup signal handlers for graceful shutdown
+        signal.signal(signal.SIGTERM, signal_handler)
+        signal.signal(signal.SIGINT, signal_handler)
         
         logger.info(f"{'='*50}")
         logger.info(f"🔔 TESTNET: {config.USE_TESTNET}")
@@ -150,8 +168,12 @@ def main():
         
     except KeyboardInterrupt:
         logger.info("\n👋 Bot stopped by user")
+        if bot_instance:
+            bot_instance.stop()
     except Exception as e:
         logger.error(f"Fatal error: {e}")
+        if bot_instance:
+            bot_instance.stop()
         sys.exit(1)
 
 if __name__ == '__main__':

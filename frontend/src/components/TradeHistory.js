@@ -17,6 +17,7 @@ function TradeHistory({ apiUrl }) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('open');
   const [expandedTrade, setExpandedTrade] = useState(null);
+  const [closingId, setClosingId] = useState(null);
 
   const fetchTrades = async () => {
     try {
@@ -37,6 +38,20 @@ function TradeHistory({ apiUrl }) {
     }
   };
 
+  const handleCloseTrade = async (tradeId) => {
+    try {
+      setClosingId(tradeId);
+      await fetch(`${apiUrl}/api/trades/${tradeId}/close`, {
+        method: 'POST'
+      });
+      await fetchTrades();
+    } catch (error) {
+      console.error('Error closing trade:', error);
+    } finally {
+      setClosingId(null);
+    }
+  };
+
   useEffect(() => {
     fetchTrades();
     const interval = setInterval(fetchTrades, 10000); // Refresh every 10 seconds
@@ -44,7 +59,7 @@ function TradeHistory({ apiUrl }) {
   }, [apiUrl]);
 
   const formatPrice = (price) => {
-    if (!price) return '$0.00';
+    if (price === null || price === undefined) return 'N/A';
     return `$${parseFloat(price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
@@ -126,7 +141,7 @@ function TradeHistory({ apiUrl }) {
               >
                 <div className="trade-header">
                   <div className="trade-main">
-                    <span className="trade-side buy">{trade.side}</span>
+                    <span className={`trade-side ${trade.side?.toLowerCase()}`}>{trade.side}</span>
                     <span className="trade-symbol">{trade.symbol}</span>
                     <span className="trade-qty">{trade.quantity}</span>
                   </div>
@@ -138,6 +153,18 @@ function TradeHistory({ apiUrl }) {
                         <small>({trade.unrealized_pl_pct >= 0 ? '+' : ''}{trade.unrealized_pl_pct?.toFixed(2)}%)</small>
                       </span>
                     )}
+                  </div>
+                  <div className="trade-actions">
+                    <button 
+                      className="trade-close-btn"
+                      disabled={closingId === trade.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCloseTrade(trade.id);
+                      }}
+                    >
+                      {closingId === trade.id ? 'Closing...' : 'Close'}
+                    </button>
                   </div>
                   {expandedTrade === trade.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                 </div>
@@ -151,6 +178,14 @@ function TradeHistory({ apiUrl }) {
                     <div className="detail-row">
                       <span>Current Price:</span>
                       <span>{formatPrice(trade.current_price)}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span>Take Profit:</span>
+                      <span>{formatPrice(trade.take_profit)}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span>Stop Loss:</span>
+                      <span>{formatPrice(trade.stop_loss)}</span>
                     </div>
                     <div className="detail-row">
                       <span>Entry Time:</span>
@@ -207,6 +242,14 @@ function TradeHistory({ apiUrl }) {
                     <div className="detail-row">
                       <span>Exit Price:</span>
                       <span>{formatPrice(trade.exit_price)}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span>Take Profit:</span>
+                      <span>{formatPrice(trade.take_profit)}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span>Stop Loss:</span>
+                      <span>{formatPrice(trade.stop_loss)}</span>
                     </div>
                     <div className="detail-row">
                       <span>Entry Time:</span>

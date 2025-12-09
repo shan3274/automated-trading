@@ -302,6 +302,7 @@
   font-size: 0.9rem;
 }
 
+
 /* Bot Control */
 .bot-section {
   margin-bottom: 24px;
@@ -387,6 +388,31 @@
 .btn-stop:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+}
+
+.btn-close-trade {
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+  color: #fff;
+  font-weight: 600;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+}
+
+.btn-close-trade:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(245, 87, 108, 0.5);
+  background: linear-gradient(135deg, #f5576c, #f093fb);
+}
+
+.btn-close-trade:active {
+  transform: translateY(0);
 }
 
 .btn-secondary {
@@ -774,6 +800,32 @@
 .trade-pl {
   text-align: right;
   font-weight: 600;
+}
+
+.trade-actions {
+  display: flex;
+  align-items: center;
+  margin-left: 12px;
+}
+
+.trade-close-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(255, 107, 107, 0.2);
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  color: #ff6b6b;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.trade-close-btn:hover:enabled {
+  background: rgba(255, 107, 107, 0.35);
+}
+
+.trade-close-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .trade-details {
